@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Scanner;
 
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -142,6 +143,64 @@ public class FlowSummary {
 		return sArray;
 		
 	}
-					
+	
+	public static void main(String[] args) {
+		System.out.println("Path to the directory with data files:");
+		String cwd = System.getProperty("user.dir");  // get current working directory
+		System.out.print(cwd + "[Y/N]:");
+		String pathCorrect, dirStr = "";
+		Scanner scan = new Scanner(System.in); 
+		pathCorrect = scan.nextLine().trim().toLowerCase();
+		if (pathCorrect.equals("y")) {
+			dirStr = cwd;
+		}	
+		else if (pathCorrect.equals("n")) {  //user needs to provide the working directory with full path
+			System.out.println("Please enter the full path to data directory: ");
+			dirStr = scan.nextLine();
+		}
+		else {
+			System.out.println("ERROR: Invalid input. Try again.");
+			System.exit(0);
+		}
+		File dataDir = new File(dirStr);
+		if (!dataDir.exists()) {  // Path does not exist
+			System.out.println("ERROR: " + dirStr + " does not exist.");
+			System.exit(0);
+		}
+		if (!dataDir.isDirectory()) {   // Path not a directory
+			System.out.println("ERROR: " + dirStr + " is not a directory.");
+			System.exit(0);
+		}
+		// user's default home directory
+		String home = System.getProperty("user.home");
+		File dictDir = new File(home, "Flow_Dict");
+		System.out.println("Path to flow cytometry data dictionary files [" + dictDir.getAbsolutePath() + "]");
+		String dictStr = scan.nextLine();
+		if (dictStr != null) {
+			dictDir = new File(dictStr);
+			if (!dictDir.exists()) {  // Path does not exist
+				System.out.println("ERROR: " + dictStr + " does not exist.");
+				System.exit(0);
+			}
+			if (!dictDir.isDirectory()) {   // Path not a directory
+				System.out.println("ERROR: " + dictStr + " is not a directory.");
+				System.exit(0);
+			}
+		}
+		File[] dataFiles = dataDir.listFiles();
+		for (File file: dataFiles) {
+			if (file.getName().toLowerCase().endsWith("xls") || file.getName().toLowerCase().endsWith("xlsx")) {
+				List<FlowJo> list = new ArrayList<FlowJo>();
+				list = readXls(file.getAbsolutePath());
+				if (list.size() != 0) {
+					String panel = list.get(0).getPanel();
+					File dictFile = new File(dictDir, panel + ".dict");
+					if (dictFile.exists()) {
+						
+					}
+				}
+			}
+		}
+	}
 					
 }
