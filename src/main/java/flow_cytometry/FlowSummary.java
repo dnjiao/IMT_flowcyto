@@ -94,7 +94,6 @@ public class FlowSummary {
 				}
 				rowIndex ++;
 				cellIndex = 0;
-				
 			}
 			workbook.close(); 
 		}
@@ -141,7 +140,6 @@ public class FlowSummary {
 			System.exit(0);
 		}
 		return sArray;
-		
 	}
 	
 	public static void main(String[] args) {
@@ -149,11 +147,11 @@ public class FlowSummary {
 		String cwd = System.getProperty("user.dir");  // get current working directory
 		System.out.print(cwd + "[Y/N]:");
 		String pathCorrect, dirStr = "";
-		Scanner scan = new Scanner(System.in); 
+		Scanner scan = new Scanner(System.in);
 		pathCorrect = scan.nextLine().trim().toLowerCase();
 		if (pathCorrect.equals("y")) {
 			dirStr = cwd;
-		}	
+		}
 		else if (pathCorrect.equals("n")) {  //user needs to provide the working directory with full path
 			System.out.println("Please enter the full path to data directory: ");
 			dirStr = scan.nextLine();
@@ -187,20 +185,35 @@ public class FlowSummary {
 				System.exit(0);
 			}
 		}
-		File[] dataFiles = dataDir.listFiles();
-		for (File file: dataFiles) {
-			if (file.getName().toLowerCase().endsWith("xls") || file.getName().toLowerCase().endsWith("xlsx")) {
-				List<FlowJo> list = new ArrayList<FlowJo>();
-				list = readXls(file.getAbsolutePath());
-				if (list.size() != 0) {
-					String panel = list.get(0).getPanel();
-					File dictFile = new File(dictDir, panel + ".dict");
-					if (dictFile.exists()) {
-						
+		File result = new File(dirStr, "summary.xls");
+		FileInputStream fis;
+		try {
+			fis = new FileInputStream(result);
+			HSSFWorkbook workbook = new HSSFWorkbook(fis);
+			HSSFSheet sheet = workbook.getSheetAt(0);
+			Row row = sheet.createRow(0);
+			String[] attributes = new String[6];
+			File[] dataFiles = dataDir.listFiles();
+			for (File file: dataFiles) {
+				if (file.getName().toLowerCase().endsWith("xls") || file.getName().toLowerCase().endsWith("xlsx")) {
+					List<FlowJo> list = new ArrayList<FlowJo>();
+					list = readXls(file.getAbsolutePath());
+					if (list.size() != 0) {
+						String panel = list.get(0).getPanel();
+						for (String gate : list.get(0).getGateMap().keySet()) {
+							attributes = readDict(dictStr, panel, gate);
+							writeAtt()
+						}
 					}
 				}
 			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
+		
+		
 	}
 					
 }
