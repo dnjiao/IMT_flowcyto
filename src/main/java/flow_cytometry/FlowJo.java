@@ -1,8 +1,10 @@
 package flow_cytometry;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 public class FlowJo {
+	String specimen;
 	String panel;
 	String protocol;
 	int accession;
@@ -12,8 +14,18 @@ public class FlowJo {
 	String staining;
 	String expDate;
 	int mrn;
-	HashMap<String, Double> gateMap;
+	LinkedHashMap<String, Double> gateMap;
 	
+	public FlowJo() {
+		gateMap = new LinkedHashMap<String, Double>();
+	}
+	public void setSpecimen(String str) {
+		specimen = str;
+	}
+	public String getSpecimen() {
+		String str = protocol + ":" + accession + ":" + collection;
+		return str;
+	}
 	public void setPanel(String str) {
 		panel = str;
 	}
@@ -70,11 +82,18 @@ public class FlowJo {
 		return staining;
 	}
 	
-	public void setGateMap(String str, Double dou) {
-		gateMap = new HashMap<String, Double>();
-		gateMap.put(str, dou);
+	public void setGateMap(ArrayList<String> str, ArrayList<Double> dou) {
+		if (str.size() != dou.size()) {
+			System.out.println("ERROR: key/value pair mismatch.");
+			System.exit(0);
+		}
+		else {
+			for (int i=0;i<str.size();i++) {
+				gateMap.put(str.get(i), dou.get(i));
+			}
+		}
 	}
-	public HashMap<String, Double> getGateMap() {
+	public LinkedHashMap<String, Double> getGateMap() {
 		return gateMap;
 	}
 	
