@@ -17,6 +17,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -42,6 +43,19 @@ public class FlowSummary {
 			System.out.println("ERROR: Invalid input. Try again.");
 			System.exit(0);
 		}
+		
+/*
+		if (args.length == 0) {
+			System.out.println("Please provide the path to the data directory");
+			System.exit(0);
+		}
+		else if (args.length > 1) {
+			System.out.println("ERROR: wrong number of arguments.");
+			System.exit(0);
+		}
+		
+		String dirStr = args[0];
+*/
 		File dataDir = new File(dirStr);
 		if (!dataDir.exists()) {  // Path does not exist
 			System.out.println("ERROR: Data folder " + dirStr + " does not exist.");
@@ -145,10 +159,9 @@ public class FlowSummary {
 		FileInputStream fis = null;
 		try {
 			File file = new File(xlsPath);
-			//String fName = file.getName();
+			String fName = file.getName();
 			// get the panel name from filename
-			//String panel = fName.split(" ")[1].substring(0, -4);
-			String panel = "Costimulatory";
+			String panel = FilenameUtils.removeExtension(fName.split(" ")[1]);
 			fis = new FileInputStream(file);
 			
 			// create a workbook from input excel file
