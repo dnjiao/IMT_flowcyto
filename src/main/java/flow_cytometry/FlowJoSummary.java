@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,12 +19,13 @@ import java.util.List;
 import java.util.Scanner;
 
 import org.apache.commons.io.FilenameUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 
-public class FlowSummary {
+public class FlowJoSummary {
 	
 	public static void main(String[] args) {
 		System.out.println("Path to the directory with data files:");
@@ -44,43 +46,35 @@ public class FlowSummary {
 			System.exit(0);
 		}
 		
-/*
-		if (args.length == 0) {
-			System.out.println("Please provide the path to the data directory");
-			System.exit(0);
-		}
-		else if (args.length > 1) {
-			System.out.println("ERROR: wrong number of arguments.");
-			System.exit(0);
-		}
-		
-		String dirStr = args[0];
-*/
 		File dataDir = new File(dirStr);
 		if (!dataDir.exists()) {  // Path does not exist
 			System.out.println("ERROR: Data folder " + dirStr + " does not exist.");
-			System.exit(0);
+			System.exit(1);
 		}
 		if (!dataDir.isDirectory()) {   // Path not a directory
 			System.out.println("ERROR: " + dirStr + " is not a directory.");
-			System.exit(0);
+			System.exit(1);
 		}
 		// user's default home directory
 		String home = System.getProperty("user.home");
 		File dictDir = new File(home, "Flow_Dict");
 		
-		try {
-			String dictStr = dictDir.getCanonicalPath();
-			System.out.println("Path to flow cytometry data dictionary files [" + dictStr + "]");
+		String dictStr = dictDir.getCanonicalPath();
+		System.out.println("Path to flow cytometry data dictionary files [" + dictStr + "]");
 
-			if (!dictDir.exists()) {  // Path does not exist
-				System.out.println("ERROR: Dictionary folder " + dictStr + " does not exist.");
-				System.exit(0);
-			}
-			if (!dictDir.isDirectory()) {   // Path not a directory
-				System.out.println("ERROR: " + dictStr + " is not a directory.");
-				System.exit(0);
-			}
+		if (!dictDir.exists()) {  // Path does not exist
+			System.out.println("ERROR: Dictionary folder " + dictStr + " does not exist.");
+			System.exit(1);
+		}
+		if (!dictDir.isDirectory()) {   // Path not a directory
+			System.out.println("ERROR: " + dictStr + " is not a directory.");
+			System.exit(1);
+		}
+		
+		List<File> files = listXls(dirStr, dictStr);
+		
+		try {
+			
 			
 			HSSFWorkbook workbook = new HSSFWorkbook();
 			HSSFSheet sheet = workbook.createSheet();
@@ -147,133 +141,75 @@ public class FlowSummary {
 		
 	}
 	
-	/****
-	 * Read in a raw data file, usually in xls format
-	 * @param path: full path to the input file
-	 * @return FlowJo object with element parsed from input
-	 */
-	public static List<FlowJo> readXls(String xlsPath) {
-		List<FlowJo> flowList = new ArrayList<FlowJo>();
-		ArrayList<String> gateList = new ArrayList<String>();
-		ArrayList<Double> valueList = new ArrayList<Double>();
-		FileInputStream fis = null;
-		try {
-			File file = new File(xlsPath);
-			String fName = file.getName();
-			// get the panel name from filename
-			String panel = FilenameUtils.removeExtension(fName.split(" ")[1]);
-			fis = new FileInputStream(file);
+
+	public static List<File> listXls(String path1, String path2) {
+		File dataDir = new File(path1);
+		// list all xls files
+		File[] files = dataDir.listFiles(new FilenameFilter() {
+		    public boolean accept(File dir, String name) {
+		        return name.toLowerCase().endsWith(".xls");
+		    }
+		});
+		List<File> foundFiles = new ArrayList<File>();
+		for (File file: files) {
+			String filename = file.getName();
+			if (!StringUtils.isNumeric(filename.split("_", 2)[0])) {
+				System.out.println("ERROR: Invalid filename - " + filename);
+				System.exit(1);
+			}
+			if (!)
 			
-			// create a workbook from input excel file
-			HSSFWorkbook workbook = new HSSFWorkbook(fis);
-			// get the first sheet
-			HSSFSheet sheet = workbook.getSheetAt(0);			
-			Row row;
-			Cell cell;
-			
-			// iterate on the rows
-			Iterator<Row> rowIter = sheet.rowIterator();
-			
-			int rowIndex = 0;
-			int cellIndex = 0;
-			int col = 0;
-			while (rowIter.hasNext()) {
-				row = rowIter.next();
-				
-				if (rowIndex == 0) { // first row in spreadsheet
-					col = 3;
-					cell = row.getCell(col);
-					// read column names into a list
-					while (cell != null) {
-						gateList.add(cell.getStringCellValue());
-						col ++;
-						cell = row.getCell(col);
+			// looking for all subdirectories in the current folder
+			if (file.isDirectory()) {
+				String fileStr = file.getName() + "_" + fileName;
+				File[] subFiles = file.listFiles();
+				// looking for certain file in each subdirectories.
+				for (File subfile : subFiles) {
+					// if file found, add to the return list
+					if (subfile.isFile() && subfile.getName().equals(fileStr)) {
+						foundFiles.add(subfile);
 					}
 				}
-				else {  // rows other than first
-					if (row.getCell(2) != null) {
-					// Only keep the "com" rows
-						if (row.getCell(2).getStringCellValue().endsWith("com")) {
-							FlowJo flowData = new FlowJo();
-							Iterator<Cell> cellIter = row.cellIterator();
-							while (cellIter.hasNext()) {
-								cell = cellIter.next();
-								flowData.setPanel(panel);
-								if (cellIndex == 0) {
-									String str = cell.getStringCellValue();
-									String[] splits = str.split(" ");
-									flowData.setFullname(str);
-									flowData.setExpDate(splits[2]);
-									flowData.setMrn(Integer.parseInt(splits[3].substring(3)));
-									flowData.setProtocol(String.join("-", splits[4].split("-")[0], splits[4].split("-")[1]));
-									flowData.setAccession(Integer.parseInt(splits[4].split("-")[2]));
-									flowData.setCollection(Integer.parseInt(splits[4].split("-")[3]));
-									
-								}
-								if (cellIndex == 1)
-									flowData.setSample(cell.getStringCellValue());
-								if (cellIndex == 2)
-									flowData.setStaining(cell.getStringCellValue());
-								if (cellIndex > 2 && cellIndex <= col) {
-									//flowData.setGateMap(gateList.get(cellIndex - 3), cell.getNumericCellValue());
-									valueList.add(cell.getNumericCellValue());
-								}
-								cellIndex ++;
-							}
-							flowData.setGateMap(gateList, valueList);
-							valueList.clear();
-							flowList.add(flowData);
+			}
+		}
+		return foundFiles;
+	}
+	
+	private List<Gate> parsePanelDict(String dictFile) {
+		List<Gate> gList = new ArrayList<Gate>();
+		File file = new File(dictFile);
+		if (file.exists()) {
+			try {
+				// Create a buffered reader to read the file
+				BufferedReader reader = new BufferedReader(new FileReader(file));			
+				String line;	
+				int linenum = 0;
+				// Looping the read block until all lines read.
+				while ((line = reader.readLine()) != null) {
+					linenum ++;
+					if (linenum > 1) { // start parsing from 2nd row
+						String split[] = line.split("\t");
+						if (split.length == 4) {
+							Gate gate = new Gate(split[0], split[1], split[2], split[3]);
+							gList.add(gate);
+						}
+						else {
+							System.out.println("ERROR: column number mismatch in " + dictFile);
+							System.exit(1);
 						}
 					}
 				}
-				rowIndex ++;
-				cellIndex = 0;
-			}
-			workbook.close(); 
-		}
-		catch (FileNotFoundException e) {
-			e.printStackTrace();
-		}
-		catch (IOException e) {
-			e.printStackTrace();
-		}
-		return flowList;
-	}
-	
-	/**
-	 * Obtain panel info from a dictionary
-	 * @param dictPath - path to the dictionary file
-	 * @param panel - name of the panel
-	 * @param gate - name of the gate
-	 * @return string array of the information
-	 */
-	public static String[] readDict (String dictPath, String panel, String gate) {
-		String sArray[] = new String[7];
-		File dictFile = new File(dictPath, panel + ".dict");
-		if (dictFile.exists()) {
-			try {
-				// Create a buffered reader to read the file
-				BufferedReader bReader = new BufferedReader(new FileReader(dictFile));			
-				String line;			
-				// Looping the read block until all lines read.
-				while ((line = bReader.readLine()) != null) {
-					String lineSplit[] = line.split("\t");
-					if (lineSplit[0].equals(gate)) {
-						System.arraycopy(lineSplit, 1, sArray, 0, 7);
-						break;
-					}
-				}
-				bReader.close();
+				reader.close();
 			}
 			catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
 		else {
-			System.out.println("ERROR: File" + dictFile.getAbsolutePath() + "does not exist.");
-			System.exit(0);
+			System.out.println("ERROR: File" + file.getAbsolutePath() + "does not exist.");
+			System.exit(1);
 		}
-		return sArray;
+		return gList;
 	}
 	
 

@@ -5,8 +5,11 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 
+import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 
 public class Sample {
@@ -25,20 +28,50 @@ public class Sample {
 	 * @param dictFile - full path to gate dictionary file
 	 */
 	public Sample(Row row0, Row sampRow, String dictFile) {
+		Iterator<Cell> cellIter = row0.cellIterator();
+		Cell cell;
+		int cellCount = 0;
+		HashMap<String, Integer> colMap = new HashMap<String, Integer>();
+		while (cellIter.hasNext()) {
+			cell = cellIter.next();
+			if (cellCount > 2) {
+				colMap.put(cell.getStringCellValue(), cellCount);
+			}
+		}
+		String str = sampRow.getCell(1).getStringCellValue();
+		String[] fields = str.split(" ");
+		if (fields.length != 5) {
+			System.out.println("ERROR: Invalid Sample Name.");
+			System.exit(1);
+		}
+		this.date = fields[0];
+		this.mrn = Integer.parseInt(fields[1].substring(3));
+		this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
+		this.accession = Integer.parseInt(fields[2].split("-")[2]);
+		this.cycle = fields[3];
+		this.collection = cycleToAcc(fields[3]);
+		this.gateList = parseGateDict(dictFile);
+		for (Gate gate : gateList) {
+			gate.setValue(Double.parseDouble(sampRow.getCell(colMap.get(gate.getColumn())).getStringCellValue()));
+		}
 		
 	}
 	
-	public Sample(int mrn, int accession, int collection, String cycle,
-			String date, String protocol, String dictFile) {
-		super();
-		this.mrn = mrn;
-		this.accession = accession;
-		this.collection = collection;
-		this.cycle = cycle;
-		this.date = date;
-		this.protocol = protocol;
-		this.gateList = parseGateDict(dictFile);
+	/**
+	 * Translate cycle "CxDy" format to collection number
+	 * @param str - cycle string
+	 * @return - collection number
+	 */
+	private int cycleToAcc(String str) {
+		if (str.length() != 4) {
+			System.out.println("ERROR: Wrong Cycle Format.");
+			System.exit(1);
+		}
+		int c = Character.getNumericValue(str.charAt(1));
+		int d = Character.getNumericValue(str.charAt(3));
+		return (c - 1) * 2 + d;
 	}
+
 	
 	/**
 	 * parse gate dictionary file for a panel
@@ -81,6 +114,7 @@ public class Sample {
 		}
 		return gList;
 	}
+	
 	
 	public int getMrn() {
 		return mrn;
