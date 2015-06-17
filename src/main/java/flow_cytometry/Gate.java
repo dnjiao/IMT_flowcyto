@@ -8,12 +8,20 @@ public class Gate {
 	String parent;
 	double value;
 	
+	/**
+	 * Custom constructor
+	 * @param column - column title appears in data xls
+	 * @param code - Gate_Code
+	 * @param definition - Gate_Definition
+	 * @param parent - Parent_Gate
+	 */
 	public Gate(String column, String code, String definition, String parent) {
 		super();
 		this.column = column;
 		this.code = code;
 		this.definition = definition;
 		this.parent = parent;
+		// Gate_Name is combination of Gate_Code and Gate_Definition
 		this.name = code + " (" + definition + ")";
 	}
 	
@@ -28,6 +36,9 @@ public class Gate {
 	}
 	public String getCode() {
 		return code;
+	}
+	public String getName() {
+		return name;
 	}
 	public void setDefinition(String str) {
 		definition = str;

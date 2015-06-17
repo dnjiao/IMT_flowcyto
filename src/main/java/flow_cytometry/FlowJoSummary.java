@@ -8,19 +8,15 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.attribute.BasicFileAttributeView;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Iterator;
+import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -60,32 +56,32 @@ public class FlowJoSummary {
 		// user's default home directory
 		String home = System.getProperty("user.home");
 		File dictDir = new File(home, "Flow_Dict");
-		
-		String dictStr = dictDir.getCanonicalPath();
-		System.out.println("Path to flow cytometry data dictionary files [" + dictStr + "]");
-
-		if (!dictDir.exists()) {  // Path does not exist
-			System.out.println("ERROR: Dictionary folder " + dictStr + " does not exist.");
-			System.exit(1);
-		}
-		if (!dictDir.isDirectory()) {   // Path not a directory
-			System.out.println("ERROR: " + dictStr + " is not a directory.");
-			System.exit(1);
-		}
-		
-		// read panel.dict
-		File panelDict = new File(dictDir, "Panel.dict");
-		if (!panelDict.exists()) {
-			System.out.println("ERROR: " + panelDict.getCanonicalPath() + " does not exist.");
-			System.exit(1);
-		}
 		try {
+			String dictStr = dictDir.getCanonicalPath();
+			System.out.println("Path to flow cytometry data dictionary files [" + dictStr + "]");
+	
+			if (!dictDir.exists()) {  // Path does not exist
+				System.out.println("ERROR: Dictionary folder " + dictStr + " does not exist.");
+				System.exit(1);
+			}
+			if (!dictDir.isDirectory()) {   // Path not a directory
+				System.out.println("ERROR: " + dictStr + " is not a directory.");
+				System.exit(1);
+			}
+			
+			// read panel.dict
+			File panelDict = new File(dictDir, "Panel.dict");
+			if (!panelDict.exists()) {
+				System.out.println("ERROR: " + panelDict.getCanonicalPath() + " does not exist.");
+				System.exit(1);
+			}
+		
 			BufferedReader reader = new BufferedReader(new FileReader(panelDict));	
 			List<String> col1 = new ArrayList<String>();
 			List<String> col2 = new ArrayList<String>();
 			List<String> col3 = new ArrayList<String>();
 			List<String> col4 = new ArrayList<String>();
-			String line;	
+			String line;
 			int linenum = 0;
 			// Looping the read block until all lines read.
 			while ((line = reader.readLine()) != null) {
@@ -97,7 +93,6 @@ public class FlowJoSummary {
 						col2.add(split[1]);
 						col3.add(split[2]);
 						col4.add(split[3]);
-						
 					}
 					else {
 						System.out.println("ERROR: column number mismatch in Panel.dict");
@@ -129,10 +124,18 @@ public class FlowJoSummary {
 			// sort panels based on accession_id
 			Collections.sort(panels, new Comparator<Panel>() {
 				public int compare(Panel p1, Panel p2) {
-					if (s1.getAccession() < s2.getAccession())
+					if (p1.getAccession() < p2.getAccession())
 						return 1;
-					if (s1.getAccession() > s2.getAccession())
+					if (p1.getAccession() > p2.getAccession())
 						return -1;
+					if (p1.getAccession() == p2.getAccession()) {
+						if (p1.getName().compareTo(p2.getName()) > 0)
+							return 1;
+						if (p1.getName().compareTo(p2.getName()) < 0)
+							return -1;
+						if (p1.getName().compareTo(p2.getName()) == 0)
+							return 0;
+					}
 					return 0;
 				}
 			});
@@ -141,10 +144,14 @@ public class FlowJoSummary {
 		catch (IOException e) {
 			e.printStackTrace();
 		}
-
 	}
-	
 
+	/**
+	 * 
+	 * @param path - path to data files
+	 * @param list - list of qualified filenames from Panel.dict
+	 * @return - list of legit files
+	 */
 	public static List<File> listXls(String path, List<String> list) {
 		
 		File dataDir = new File(path);
@@ -165,73 +172,59 @@ public class FlowJoSummary {
 		return foundFiles;
 	}	
 	
+	/**
+	 * 
+	 * @param file - output xls file
+	 * @param panels - list of Panel objects
+	 * @return - total row number
+	 */
 	public static int writeXls(File file, List<Panel> panels) {
 		
-		try {
+		List<Integer> accList = new ArrayList<Integer>();
+		HSSFWorkbook workbook = new HSSFWorkbook();
+		HSSFSheet sheet = workbook.createSheet();
+		int rowID = 0;
+		Row row = sheet.createRow(rowID++);
+		String[] firstrow = {"PrometheusSpecimenID", "Umbrella_Protocol_ID","Umbrella_Protocol_Core_Accession_Number",
+				             "Umbrella_Protocol_Collection_Number","Panel_Code","Panel_Name","Panel_Antibodies",
+				             "Gate_Code","Gate_Name","Definition_Gate_Population","Gate_Value(%)","Parent_Gate",
+				             "Record_Insert_Date","Record_Modified_Date","Delete_Flag"};
+		writeXlsRow(row, 0, firstrow);
+		
+		//get current date and time as Record_Insert_Date
+		DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy hh:mm a");
+		Date date = new Date();
+		for (Panel pan : panels) {
+			// create list of unique accession numbers (patient count)
+			if (!accList.contains(pan.getAccession()))
+				accList.add(pan.getAccession());
 			
-			
-			HSSFWorkbook workbook = new HSSFWorkbook();
-			HSSFSheet sheet = workbook.createSheet();
-			Row row = sheet.createRow(0);
-			Cell cell;
-			String[] firstrow = {"PrometheusSpecimenID", "Umbrella_Protocol_ID","Umbrella_Protocol_Core_Accession_Number",
-					             "Umbrella_Protocol_Collection_Number","Panel_Code","Panel_Name","Panel_Antibodies",
-					             "Gate_Code","Gate_Name","Definition_Gate_Population","Gate_Value(%)","Parent_Gate",
-					             "Record_Insert_Date","Record_Modified_Date","Delete_Flag"};
-			writeXlsRow(row, 0, firstrow);
-			int rowID = 1;
-			
-			
-			String[] attributes = new String[6];
-			File[] dataFiles = dataDir.listFiles();
-			for (File file: dataFiles) {
-				if (file.getName().toLowerCase().endsWith("xls") && !file.getName().equals("summary.xls")) {
-					List<FlowJo> list = new ArrayList<FlowJo>();
-					list = readXls(file.getAbsolutePath());
-					if (list.size() != 0) {
-						String panel = list.get(0).getPanel();
-						int colID;
-						for (FlowJo f : list) {
-							for (String gate : f.getGateMap().keySet()) {
-								colID = 0;
-								row = sheet.createRow(rowID++);
-								cell = row.createCell(colID++);
-								cell.setCellValue(f.getSpecimen());
-								cell = row.createCell(colID++);
-								cell.setCellValue(f.getProtocol());
-								cell = row.createCell(colID++);
-								cell.setCellValue(f.getAccession());
-								cell = row.createCell(colID++);
-								cell.setCellValue(f.getCollection());
-								attributes = readDict(dictStr, panel, gate);
-								colID = writeXlsRow(row, colID, Arrays.copyOfRange(attributes, 0, attributes.length - 1));
-								cell = row.createCell(colID++);
-								cell.setCellValue(f.getGateMap().get(gate));
-								cell = row.createCell(colID++);
-								cell.setCellValue(attributes[attributes.length - 1]);
-								// getting the last modified timestamp of the file
-								Path path = file.toPath();
-								BasicFileAttributeView view = Files.getFileAttributeView(path, BasicFileAttributeView.class);
-								BasicFileAttributes attr = view.readAttributes();
-								cell = row.createCell(colID);
-								cell.setCellValue(attr.lastModifiedTime().toString());
-								cell = row.createCell(colID+2);
-								cell.setCellValue("N");
-							}
-						}
-					}
+			for (Sample samp : pan.getSamples()) {
+				for (Gate gt : samp.getGates()) {
+					String specimen = pan.getProtocol() + ":" + pan.getAccession() + ":" + samp.getCollection();
+					String[] cells = {specimen, pan.getProtocol(), Integer.toString(pan.getAccession()), 
+									  Integer.toString(samp.getCollection()),pan.getCode(), pan.getName(), pan.getAntibodies(),
+							  		  gt.getCode(), gt.getName(), gt.getDefinition(), Double.toString(gt.getValue()), gt.getParent(),
+							  		  dateFormat.format(date), "", "N"};
+					row = sheet.createRow(rowID++);
+					writeXlsRow(row, 0, cells);
+					
 				}
 			}
-			FileOutputStream out = new FileOutputStream(new File(dirStr, "summary.xls"));
-            workbook.write(out);
-            workbook.close();
-            System.out.println("summary.xls is generated.");
+		}
+		// write workbook to xls file
+		FileOutputStream out;
+		try {
+			out = new FileOutputStream(file);
+			workbook.write(out);
+	        workbook.close();
+	        System.out.println("summary.xls is generated with " + Integer.toString(accList.size()) + " patients");
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
+        return rowID;
 	}
 	
 	/**
@@ -248,6 +241,5 @@ public class FlowJoSummary {
 			cell.setCellValue(str);
 		}
 		return colIndex;
-	}
-					
+	}				
 }

@@ -20,7 +20,7 @@ public class Panel {
 	String name;
 	String antibodies;
 	int mrn;
-	String accession;
+	int accession;
 	String protocol;
 	List<Sample> samples;
 	
@@ -29,53 +29,67 @@ public class Panel {
 	 * @param filename - name of panel data file
 	 * @param path - path to dictionaries files
 	 */
-	public Panel(String code, String name, String antibodies, String samplefield, String dictpath, HSSFSheet sheet) {
+	public Panel(String code, String name, String antibodies, String dictpath, HSSFSheet sheet) {
 		super();
 		this.code = code;
 		this.name = name;
 		this.antibodies = antibodies;
 		this.samples = new ArrayList<Sample>();
 		
-		File dictfile = new File(dictpath, code + ".dict");
-		if (!dictfile.exists()) {
-			System.out.println("ERROR: " + dictfile.getCanonicalPath() + " does not exist.");
-			System.exit(1);
-		}
-		Iterator<Row> rowIter = sheet.rowIterator();
-		int rowCount = 0;
-		List<Integer> comList = new ArrayList<Integer>();
-		while (rowIter.hasNext()) {
-			Row row = rowIter.next();
-			rowCount ++;
-			if (row.getCell(0) != null && row.getCell(0).getStringCellValue().toLowerCase().contains("mean")) {
-				break;
+		try {
+			File dictfile = new File(dictpath, code + ".dict");
+			if (!dictfile.exists()) {
+				
+					System.out.println("ERROR: " + dictfile.getCanonicalPath() + " does not exist.");
+				
+				System.exit(1);
 			}
-			if (rowCount != 1 && row.getCell(2).getStringCellValue().toLowerCase().contains("com")) {
-				comList.add(row.getRowNum());
+			Iterator<Row> rowIter = sheet.rowIterator();
+			int rowCount = 0;
+			List<Integer> comList = new ArrayList<Integer>();
+			while (rowIter.hasNext()) {
+				Row row = rowIter.next();
+				rowCount ++;
+				if (row.getCell(0) != null && row.getCell(0).getStringCellValue().toLowerCase().contains("mean")) {
+					break;
+				}
+				if (rowCount != 1 && row.getCell(2).getStringCellValue().toLowerCase().contains("com")) {
+					comList.add(row.getRowNum());
+				}
 			}
-		}
-		
-		
-		if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
-			if (rowCount > 2 && (rowCount - 2) < 5) {  // total lines <= 4
-				for (int i = 1; i < rowCount - 1; i ++) {
-					String[] fieldStr = parseSampleField(sheet.getRow(i).getCell(1).getStringCellValue());
+			
+			String[] fields = new String[5];
+			if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
+				if (rowCount > 2 && (rowCount - 2) < 5) {  // total lines <= 4
+					for (int i = 1; i < rowCount - 1; i ++) {
+						
+						Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
+						samples.add(samp);
+					}
+					fields = parseSampleField(sheet.getRow(1).getCell(1).getStringCellValue());
+					
+				}
+				else { 
+					System.out.println("ERROR: Invalid number of rows in file.");
+					System.exit(1);
+				}
+			}
+			else { // only read the rows with "com" in "staining" column
+				for (int i : comList) {
 					Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
 					samples.add(samp);
 				}
+				fields = parseSampleField(sheet.getRow(comList.get(0)).getCell(1).getStringCellValue());
 			}
-			else { 
-				System.out.println("ERROR: Invalid number of rows in file.");
-				System.exit(1);
-			}
-		}
-		else { // only read the rows with "com" in "staining" column
-			for (int i : comList) {
-				Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
-				samples.add(samp);
-			}
+			this.mrn = Integer.parseInt(fields[1].substring(3));
+			this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
+			this.accession = Integer.parseInt(fields[2].split("-")[2]);
+		
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 		
+		// sort samples based on the collection ID
 		Collections.sort(samples, new Comparator<Sample>() {
 			public int compare(Sample s1, Sample s2) {
 				if (s1.getCollection() < s2.getCollection())
@@ -88,8 +102,12 @@ public class Panel {
 
 	}
 	
-	private String[] parseSampleField(String str) {
-		//String str = sampRow.getCell(1).getStringCellValue();
+	/**
+	 * Parse sample field and convert to String array
+	 * @param str - sample field content, 2nd column in data xls
+	 * @return - 5-member String array
+	 */
+	public static String[] parseSampleField(String str) {
 		String[] out = new String[5];
 		String[] fields = str.split(" ");
 		if (fields.length != 5) {
@@ -101,9 +119,8 @@ public class Panel {
 		out[2] = fields[2];
 		out[3] = fields[3];
 		out[4] = fields[4];
-		this.mrn = Integer.parseInt(fields[1].substring(3));
-		this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
-		this.accession = Integer.parseInt(fields[2].split("-")[2]);
+		return out;
+		
 	}
 	public String getCode() {
 		return code;
@@ -123,10 +140,34 @@ public class Panel {
 	public void setAntibodies(String antibodies) {
 		this.antibodies = antibodies;
 	}
-	public List<Sample> getsList() {
+	public int getMrn() {
+		return mrn;
+	}
+
+	public void setMrn(int mrn) {
+		this.mrn = mrn;
+	}
+
+	public int getAccession() {
+		return accession;
+	}
+
+	public void setAccession(int accession) {
+		this.accession = accession;
+	}
+
+	public String getProtocol() {
+		return protocol;
+	}
+
+	public void setProtocol(String protocol) {
+		this.protocol = protocol;
+	}
+
+	public List<Sample> getSamples() {
 		return samples;
 	}
-	public void setsList(List<Sample> samples) {
+	public void setSamples(List<Sample> samples) {
 		this.samples = samples;
 	}
 	

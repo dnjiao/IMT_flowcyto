@@ -36,18 +36,13 @@ public class Sample {
 			}
 		}
 		String str = sampRow.getCell(1).getStringCellValue();
-		String[] fields = str.split(" ");
-		if (fields.length != 5) {
-			System.out.println("ERROR: Invalid Sample Name.");
-			System.exit(1);
-		}
+		String[] fields = Panel.parseSampleField(str);
 		this.date = fields[0];
-		this.mrn = Integer.parseInt(fields[1].substring(3));
-		this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
-		this.accession = Integer.parseInt(fields[2].split("-")[2]);
 		this.cycle = fields[3];
 		this.collection = cycleToColl(fields[3]);
 		this.gates = parseGateDict(dictFile);
+		
+		// set gate values
 		for (Gate gate : gates) {
 			gate.setValue(Double.parseDouble(sampRow.getCell(colMap.get(gate.getColumn())).getStringCellValue()));
 		}
@@ -111,20 +106,7 @@ public class Sample {
 		}
 		return gList;
 	}
-	
-	
-	public int getMrn() {
-		return mrn;
-	}
-	public void setMrn(int mrn) {
-		this.mrn = mrn;
-	}
-	public int getAccession() {
-		return accession;
-	}
-	public void setAccession(int accession) {
-		this.accession = accession;
-	}
+
 	public int getCollection() {
 		return collection;
 	}
@@ -143,12 +125,10 @@ public class Sample {
 	public void setDate(String date) {
 		this.date = date;
 	}
-	public String getProtocol() {
-		return protocol;
+	public List<Gate> getGates() {
+		return gates;
 	}
-	public void setProtocol(String protocol) {
-		this.protocol = protocol;
+	public void setGates(List<Gate> gates) {
+		this.gates = gates;
 	}
-	
-	
 }
