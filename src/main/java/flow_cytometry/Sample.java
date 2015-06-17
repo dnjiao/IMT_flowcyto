@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -31,8 +33,9 @@ public class Sample {
 		HashMap<String, Integer> colMap = new HashMap<String, Integer>();
 		while (cellIter.hasNext()) {
 			cell = cellIter.next();
-			if (cellCount > 2) {
-				colMap.put(cell.getStringCellValue(), cellCount);
+			cellCount ++;
+			if (cellCount > 3) {
+				colMap.put(cell.getStringCellValue(), cellCount - 1);
 			}
 		}
 		String str = sampRow.getCell(1).getStringCellValue();
@@ -44,8 +47,19 @@ public class Sample {
 		
 		// set gate values
 		for (Gate gate : gates) {
-			gate.setValue(Double.parseDouble(sampRow.getCell(colMap.get(gate.getColumn())).getStringCellValue()));
+			gate.setValue(sampRow.getCell(colMap.get(gate.getColumn())).getNumericCellValue());
 		}
+		
+		// sort gates based on Gate_Code
+		Collections.sort(gates, new Comparator<Gate>() {
+			public int compare(Gate g1, Gate g2) {
+				if (g1.getCode().compareTo(g2.getCode()) > 0)
+					return 1;
+				if (g1.getCode().compareTo(g2.getCode()) < 0)
+					return -1;
+				return 0;
+			}
+		});
 		
 	}
 	

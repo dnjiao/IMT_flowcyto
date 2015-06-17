@@ -1,21 +1,18 @@
 package flow_cytometry;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 
 public class Panel {
+	String filename;
 	String code;
 	String name;
 	String antibodies;
@@ -29,8 +26,9 @@ public class Panel {
 	 * @param filename - name of panel data file
 	 * @param path - path to dictionaries files
 	 */
-	public Panel(String code, String name, String antibodies, String dictpath, HSSFSheet sheet) {
+	public Panel(String filename, String code, String name, String antibodies, String dictpath, HSSFSheet sheet) {
 		super();
+		this.filename = filename;
 		this.code = code;
 		this.name = name;
 		this.antibodies = antibodies;
@@ -92,9 +90,9 @@ public class Panel {
 		// sort samples based on the collection ID
 		Collections.sort(samples, new Comparator<Sample>() {
 			public int compare(Sample s1, Sample s2) {
-				if (s1.getCollection() < s2.getCollection())
-					return 1;
 				if (s1.getCollection() > s2.getCollection())
+					return 1;
+				if (s1.getCollection() < s2.getCollection())
 					return -1;
 				return 0;
 			}
@@ -105,22 +103,28 @@ public class Panel {
 	/**
 	 * Parse sample field and convert to String array
 	 * @param str - sample field content, 2nd column in data xls
-	 * @return - 5-member String array
+	 * @return - 4-member String array
 	 */
 	public static String[] parseSampleField(String str) {
-		String[] out = new String[5];
-		String[] fields = str.split(" ");
-		if (fields.length != 5) {
-			System.out.println("ERROR: Invalid Sample Name.");
+		String[] out = new String[4];
+		
+		// split with one or more spaces
+		String[] fields = str.split(" +");
+		if (fields.length < 4) {
+			System.out.println("ERROR: Invalid Sample Name: " + str);
 			System.exit(1);
 		}
+		// only take the first 4 elements
 		out[0] = fields[0];
 		out[1] = fields[1];
 		out[2] = fields[2];
 		out[3] = fields[3];
-		out[4] = fields[4];
+		
 		return out;
 		
+	}
+	public String getFilename() {
+		return filename;
 	}
 	public String getCode() {
 		return code;

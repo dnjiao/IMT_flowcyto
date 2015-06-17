@@ -89,7 +89,7 @@ public class FlowJoSummary {
 				if (linenum > 1) { // start parsing from 2nd row
 					String split[] = line.split("\t");
 					if (split.length == 4) {
-						col1.add(split[0]);
+						col1.add(split[0].toLowerCase());
 						col2.add(split[1]);
 						col3.add(split[2]);
 						col4.add(split[3]);
@@ -106,15 +106,15 @@ public class FlowJoSummary {
 			List<Panel> panels = new ArrayList<Panel>();
 			List<File> files = listXls(dirStr, col1);
 			for (File file : files) {
-				FileInputStream fis = null;
+				FileInputStream fis = new FileInputStream(file);
 				// create a workbook from input excel file
 				HSSFWorkbook workbook = new HSSFWorkbook(fis);
 				// get the first sheet
 				HSSFSheet sheet = workbook.getSheetAt(0);
-				String name = file.getName().split("_", 2)[1];
+				String name = file.getName().substring(0, file.getName().length() - 4).split("_", 2)[1];
 				for (int i=0; i < col1.size(); i++) {
-					if (col1.get(i).equals(name)) {
-						Panel panel = new Panel(col2.get(i), col3.get(i), col4.get(i), dictStr, sheet);
+					if (col1.get(i).equalsIgnoreCase(name)) {
+						Panel panel = new Panel(col1.get(i), col2.get(i), col3.get(i), col4.get(i), dictStr, sheet);
 						panels.add(panel);
 					}
 				}
@@ -129,11 +129,11 @@ public class FlowJoSummary {
 					if (p1.getAccession() > p2.getAccession())
 						return -1;
 					if (p1.getAccession() == p2.getAccession()) {
-						if (p1.getName().compareTo(p2.getName()) > 0)
+						if (p1.getFilename().compareTo(p2.getFilename()) > 0)
 							return 1;
-						if (p1.getName().compareTo(p2.getName()) < 0)
+						if (p1.getFilename().compareTo(p2.getFilename()) < 0)
 							return -1;
-						if (p1.getName().compareTo(p2.getName()) == 0)
+						if (p1.getFilename().compareTo(p2.getFilename()) == 0)
 							return 0;
 					}
 					return 0;
@@ -164,10 +164,11 @@ public class FlowJoSummary {
 		});
 		
 		for (File f : files) {
-			String filename = f.getName();
-			if (StringUtils.isNumeric(filename.split("_", 2)[0]) && list.contains(filename.split("_", 2)[1])) {
-				foundFiles.add(f);
-			}
+			String filename = f.getName().toLowerCase();
+			if (filename.indexOf("_") >= 0)
+				if (StringUtils.isNumeric(filename.split("_", 2)[0]) && list.contains(filename.substring(0,filename.length() - 4).split("_", 2)[1])) {
+					foundFiles.add(f);
+				}
 		}
 		return foundFiles;
 	}	
