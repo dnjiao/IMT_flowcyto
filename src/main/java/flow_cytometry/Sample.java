@@ -13,13 +13,10 @@ import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 
 public class Sample {
-	int mrn;
-	int accession;
 	int collection;
 	String cycle;
 	String date;
-	String protocol;
-	List<Gate> gateList;
+	List<Gate> gates;
 	
 	/** 
 	 * custom constructor
@@ -49,9 +46,9 @@ public class Sample {
 		this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
 		this.accession = Integer.parseInt(fields[2].split("-")[2]);
 		this.cycle = fields[3];
-		this.collection = cycleToAcc(fields[3]);
-		this.gateList = parseGateDict(dictFile);
-		for (Gate gate : gateList) {
+		this.collection = cycleToColl(fields[3]);
+		this.gates = parseGateDict(dictFile);
+		for (Gate gate : gates) {
 			gate.setValue(Double.parseDouble(sampRow.getCell(colMap.get(gate.getColumn())).getStringCellValue()));
 		}
 		
@@ -62,7 +59,7 @@ public class Sample {
 	 * @param str - cycle string
 	 * @return - collection number
 	 */
-	private int cycleToAcc(String str) {
+	private int cycleToColl(String str) {
 		if (str.length() != 4) {
 			System.out.println("ERROR: Wrong Cycle Format.");
 			System.exit(1);

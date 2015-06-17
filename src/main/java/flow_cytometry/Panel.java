@@ -19,19 +19,22 @@ public class Panel {
 	String code;
 	String name;
 	String antibodies;
-	List<Sample> sList;
+	int mrn;
+	String accession;
+	String protocol;
+	List<Sample> samples;
 	
 	/**
 	 * constructor of Panel class
 	 * @param filename - name of panel data file
 	 * @param path - path to dictionaries files
 	 */
-	public Panel(String code, String name, String antibodies, String dictpath, HSSFSheet sheet) {
+	public Panel(String code, String name, String antibodies, String samplefield, String dictpath, HSSFSheet sheet) {
 		super();
 		this.code = code;
 		this.name = name;
 		this.antibodies = antibodies;
-		this.sList = new ArrayList<Sample>();
+		this.samples = new ArrayList<Sample>();
 		
 		File dictfile = new File(dictpath, code + ".dict");
 		if (!dictfile.exists()) {
@@ -51,11 +54,14 @@ public class Panel {
 				comList.add(row.getRowNum());
 			}
 		}
+		
+		
 		if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
 			if (rowCount > 2 && (rowCount - 2) < 5) {  // total lines <= 4
 				for (int i = 1; i < rowCount - 1; i ++) {
+					String[] fieldStr = parseSampleField(sheet.getRow(i).getCell(1).getStringCellValue());
 					Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
-					sList.add(samp);
+					samples.add(samp);
 				}
 			}
 			else { 
@@ -66,58 +72,38 @@ public class Panel {
 		else { // only read the rows with "com" in "staining" column
 			for (int i : comList) {
 				Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
-				sList.add(samp);
+				samples.add(samp);
 			}
 		}
 		
-		Collections.sort(sList, new Comparator<Sample>() {
+		Collections.sort(samples, new Comparator<Sample>() {
 			public int compare(Sample s1, Sample s2) {
-				if (s1.getAccession() < s2.getAccession())
+				if (s1.getCollection() < s2.getCollection())
 					return 1;
-				if (s1.getAccession() > s2.getAccession())
+				if (s1.getCollection() > s2.getCollection())
 					return -1;
 				return 0;
 			}
 		});
 
-		File pDict = new File(path, "Panel.dict");
-		// parse Panel.dict and initiate Panel members
-		if (pDict.exists()) {
-			try {
-				// Create a buffered reader to read the file
-				BufferedReader reader = new BufferedReader(new FileReader(pDict));			
-				String line;	
-				int linenum = 0;
-				// Looping the read block until all lines read.
-				while ((line = reader.readLine()) != null) {
-					linenum ++;
-					if (linenum > 1) { // start parsing from 2nd row
-						String split[] = line.split("\t");
-						if (split.length == 4) {
-							this.filename = split[0];
-							this.code = split[1];
-							this.name = split[2];
-							this.antibodies = split[3];
-							new File(path, this.code + ".dict").toString();
-						}
-						else {
-							System.out.println("ERROR: column number mismatch in Panel.dict");
-							System.exit(1);
-						}
-					}
-				}
-				
-				reader.close();
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		else {
-			System.out.println("ERROR: File" + pDict.getAbsolutePath() + "does not exist.");
+	}
+	
+	private String[] parseSampleField(String str) {
+		//String str = sampRow.getCell(1).getStringCellValue();
+		String[] out = new String[5];
+		String[] fields = str.split(" ");
+		if (fields.length != 5) {
+			System.out.println("ERROR: Invalid Sample Name.");
 			System.exit(1);
 		}
-		
+		out[0] = fields[0];
+		out[1] = fields[1];
+		out[2] = fields[2];
+		out[3] = fields[3];
+		out[4] = fields[4];
+		this.mrn = Integer.parseInt(fields[1].substring(3));
+		this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
+		this.accession = Integer.parseInt(fields[2].split("-")[2]);
 	}
 	public String getCode() {
 		return code;
@@ -138,10 +124,10 @@ public class Panel {
 		this.antibodies = antibodies;
 	}
 	public List<Sample> getsList() {
-		return sList;
+		return samples;
 	}
-	public void setsList(List<Sample> sList) {
-		this.sList = sList;
+	public void setsList(List<Sample> samples) {
+		this.samples = samples;
 	}
 	
 }

@@ -14,6 +14,8 @@ import java.nio.file.attribute.BasicFileAttributeView;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
@@ -71,7 +73,99 @@ public class FlowJoSummary {
 			System.exit(1);
 		}
 		
-		List<File> files = listXls(dirStr, dictStr);
+		// read panel.dict
+		File panelDict = new File(dictDir, "Panel.dict");
+		if (!panelDict.exists()) {
+			System.out.println("ERROR: " + panelDict.getCanonicalPath() + " does not exist.");
+			System.exit(1);
+		}
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(panelDict));	
+			List<String> col1 = new ArrayList<String>();
+			List<String> col2 = new ArrayList<String>();
+			List<String> col3 = new ArrayList<String>();
+			List<String> col4 = new ArrayList<String>();
+			String line;	
+			int linenum = 0;
+			// Looping the read block until all lines read.
+			while ((line = reader.readLine()) != null) {
+				linenum ++;
+				if (linenum > 1) { // start parsing from 2nd row
+					String split[] = line.split("\t");
+					if (split.length == 4) {
+						col1.add(split[0]);
+						col2.add(split[1]);
+						col3.add(split[2]);
+						col4.add(split[3]);
+						
+					}
+					else {
+						System.out.println("ERROR: column number mismatch in Panel.dict");
+						System.exit(1);
+					}
+				}
+			}
+			
+			reader.close();
+			
+			List<Panel> panels = new ArrayList<Panel>();
+			List<File> files = listXls(dirStr, col1);
+			for (File file : files) {
+				FileInputStream fis = null;
+				// create a workbook from input excel file
+				HSSFWorkbook workbook = new HSSFWorkbook(fis);
+				// get the first sheet
+				HSSFSheet sheet = workbook.getSheetAt(0);
+				String name = file.getName().split("_", 2)[1];
+				for (int i=0; i < col1.size(); i++) {
+					if (col1.get(i).equals(name)) {
+						Panel panel = new Panel(col2.get(i), col3.get(i), col4.get(i), dictStr, sheet);
+						panels.add(panel);
+					}
+				}
+				workbook.close();
+			}
+			File outfile = new File(dirStr, "summary.xls");
+			// sort panels based on accession_id
+			Collections.sort(panels, new Comparator<Panel>() {
+				public int compare(Panel p1, Panel p2) {
+					if (s1.getAccession() < s2.getAccession())
+						return 1;
+					if (s1.getAccession() > s2.getAccession())
+						return -1;
+					return 0;
+				}
+			});
+			writeXls(outfile, panels);
+		}
+		catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+	
+
+	public static List<File> listXls(String path, List<String> list) {
+		
+		File dataDir = new File(path);
+		List<File> foundFiles = new ArrayList<File>();
+		// list all xls files
+		File[] files = dataDir.listFiles(new FilenameFilter() {
+		    public boolean accept(File dir, String name) {
+		        return name.toLowerCase().endsWith(".xls");
+		    }
+		});
+		
+		for (File f : files) {
+			String filename = f.getName();
+			if (StringUtils.isNumeric(filename.split("_", 2)[0]) && list.contains(filename.split("_", 2)[1])) {
+				foundFiles.add(f);
+			}
+		}
+		return foundFiles;
+	}	
+	
+	public static int writeXls(File file, List<Panel> panels) {
 		
 		try {
 			
@@ -138,81 +232,7 @@ public class FlowJoSummary {
 			e.printStackTrace();
 		}
 		
-		
 	}
-	
-
-	public static List<File> listXls(String path1, String path2) {
-		File dataDir = new File(path1);
-		// list all xls files
-		File[] files = dataDir.listFiles(new FilenameFilter() {
-		    public boolean accept(File dir, String name) {
-		        return name.toLowerCase().endsWith(".xls");
-		    }
-		});
-		List<File> foundFiles = new ArrayList<File>();
-		for (File file: files) {
-			String filename = file.getName();
-			if (!StringUtils.isNumeric(filename.split("_", 2)[0])) {
-				System.out.println("ERROR: Invalid filename - " + filename);
-				System.exit(1);
-			}
-			if (!)
-			
-			// looking for all subdirectories in the current folder
-			if (file.isDirectory()) {
-				String fileStr = file.getName() + "_" + fileName;
-				File[] subFiles = file.listFiles();
-				// looking for certain file in each subdirectories.
-				for (File subfile : subFiles) {
-					// if file found, add to the return list
-					if (subfile.isFile() && subfile.getName().equals(fileStr)) {
-						foundFiles.add(subfile);
-					}
-				}
-			}
-		}
-		return foundFiles;
-	}
-	
-	private List<Gate> parsePanelDict(String dictFile) {
-		List<Gate> gList = new ArrayList<Gate>();
-		File file = new File(dictFile);
-		if (file.exists()) {
-			try {
-				// Create a buffered reader to read the file
-				BufferedReader reader = new BufferedReader(new FileReader(file));			
-				String line;	
-				int linenum = 0;
-				// Looping the read block until all lines read.
-				while ((line = reader.readLine()) != null) {
-					linenum ++;
-					if (linenum > 1) { // start parsing from 2nd row
-						String split[] = line.split("\t");
-						if (split.length == 4) {
-							Gate gate = new Gate(split[0], split[1], split[2], split[3]);
-							gList.add(gate);
-						}
-						else {
-							System.out.println("ERROR: column number mismatch in " + dictFile);
-							System.exit(1);
-						}
-					}
-				}
-				reader.close();
-			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		else {
-			System.out.println("ERROR: File" + file.getAbsolutePath() + "does not exist.");
-			System.exit(1);
-		}
-		return gList;
-	}
-	
-
 	
 	/**
 	 * write a string array to a particular row of a spreadsheet
