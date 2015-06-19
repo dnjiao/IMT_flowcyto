@@ -1,11 +1,9 @@
 package flow_cytometry;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.text.DateFormat;
@@ -14,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 
@@ -69,39 +68,35 @@ public class FlowJoSummary {
 				System.exit(1);
 			}
 			
-			// read panel.dict
-			File panelDict = new File(dictDir, "Panel.dict");
-			if (!panelDict.exists()) {
-				System.out.println("ERROR: " + panelDict.getCanonicalPath() + " does not exist.");
+			// read dictionary file
+			File dictFile = new File(dictDir, "FlowJo_Dict.xls");
+			if (!dictFile.exists()) {
+				System.out.println("ERROR: " + dictFile.getCanonicalPath() + " does not exist.");
 				System.exit(1);
 			}
-		
-			BufferedReader reader = new BufferedReader(new FileReader(panelDict));	
+			
+			FileInputStream dictfis = new FileInputStream(dictFile);
+			HSSFWorkbook dictbook = new HSSFWorkbook(dictfis);
+			HSSFSheet dictsheet = dictbook.getSheetAt(0);
+
 			List<String> col1 = new ArrayList<String>();
 			List<String> col2 = new ArrayList<String>();
 			List<String> col3 = new ArrayList<String>();
 			List<String> col4 = new ArrayList<String>();
-			String line;
-			int linenum = 0;
-			// Looping the read block until all lines read.
-			while ((line = reader.readLine()) != null) {
-				linenum ++;
-				if (linenum > 1) { // start parsing from 2nd row
-					String split[] = line.split("\t");
-					if (split.length == 4) {
-						col1.add(split[0].toLowerCase());
-						col2.add(split[1]);
-						col3.add(split[2]);
-						col4.add(split[3]);
-					}
-					else {
-						System.out.println("ERROR: column number mismatch in Panel.dict");
-						System.exit(1);
-					}
-				}
-			}
 			
-			reader.close();
+			Iterator<Row> rowIter = dictsheet.rowIterator();
+			
+			int rowCount = 0;			
+			while (rowIter.hasNext()) {
+				Row row = rowIter.next();
+				if (rowCount > 0) {
+					col1.add(row.getCell(0).getStringCellValue().toLowerCase());
+					col2.add(row.getCell(1).getStringCellValue());
+					col3.add(row.getCell(2).getStringCellValue());
+					col4.add(row.getCell(3).getStringCellValue());
+				}
+				rowCount ++;
+			}
 			
 			List<Panel> panels = new ArrayList<Panel>();
 			List<File> files = listXls(dirStr, col1);
@@ -114,7 +109,7 @@ public class FlowJoSummary {
 				String name = file.getName().substring(0, file.getName().length() - 4).split("_", 2)[1];
 				for (int i=0; i < col1.size(); i++) {
 					if (col1.get(i).equalsIgnoreCase(name)) {
-						Panel panel = new Panel(col1.get(i), col2.get(i), col3.get(i), col4.get(i), dictStr, sheet);
+						Panel panel = new Panel(col1.get(i), col2.get(i), col3.get(i), col4.get(i), dictbook, sheet);
 						panels.add(panel);
 					}
 				}

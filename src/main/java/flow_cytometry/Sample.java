@@ -1,9 +1,5 @@
 package flow_cytometry;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -11,6 +7,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 
@@ -26,11 +23,12 @@ public class Sample {
 	 * @param sampRow - sample row in the data sheet
 	 * @param dictFile - full path to gate dictionary file
 	 */
-	public Sample(Row row0, Row sampRow, String dictFile) {
+	public Sample(Row row0, Row sampRow, HSSFSheet sheet) {
 		Iterator<Cell> cellIter = row0.cellIterator();
 		Cell cell;
 		int cellCount = 0;
 		HashMap<String, Integer> colMap = new HashMap<String, Integer>();
+		// read data sheet and record column names and their indexes
 		while (cellIter.hasNext()) {
 			cell = cellIter.next();
 			cellCount ++;
@@ -43,15 +41,22 @@ public class Sample {
 		this.date = fields[0];
 		this.cycle = fields[3];
 		this.collection = cycleToColl(fields[3]);
-		this.gates = parseGateDict(dictFile);
+		this.gates = parseGateDict(sheet);
 		
+		// list to store gate that needs to be deleted
+		List<Integer> deleteList = new ArrayList<Integer>();
 		// set gate values
 		for (Gate gate : gates) {
-			
-//				if (colMap.get(gate.getColumn()) != null)
-					gate.setValue(sampRow.getCell(colMap.get(gate.getColumn())).getNumericCellValue());
-			
-			
+			if (colMap.get(gate.getColumn()) == null)
+				deleteList.add(gates.indexOf(gate));
+			else
+				gate.setValue(sampRow.getCell(colMap.get(gate.getColumn())).getNumericCellValue());
+		}
+		
+		if(deleteList.size() > 0) {
+			for (int i = deleteList.get(-1); i >= 0; i  deleteList) {
+				gates.remove(i);
+			}
 		}
 		
 		// sort gates based on Gate_Code
@@ -85,42 +90,22 @@ public class Sample {
 	
 	/**
 	 * parse gate dictionary file for a panel
-	 * @param dictFile - full path to dictionary file
+	 * @param sheet - sheet for the panel
 	 * @return list of Gate objects
 	 */
-	private List<Gate> parseGateDict(String dictFile) {
+	private List<Gate> parseGateDict(HSSFSheet sheet) {
 		List<Gate> gList = new ArrayList<Gate>();
-		File file = new File(dictFile);
-		if (file.exists()) {
-			try {
-				// Create a buffered reader to read the file
-				BufferedReader reader = new BufferedReader(new FileReader(file));			
-				String line;	
-				int linenum = 0;
-				// Looping the read block until all lines read.
-				while ((line = reader.readLine()) != null) {
-					linenum ++;
-					if (linenum > 1) { // start parsing from 2nd row
-						String split[] = line.split("\t");
-						if (split.length == 4) {
-							Gate gate = new Gate(split[0], split[1], split[2], split[3]);
-							gList.add(gate);
-						}
-						else {
-							System.out.println("ERROR: column number mismatch in " + dictFile);
-							System.exit(1);
-						}
-					}
-				}
-				reader.close();
+		Iterator<Row> rowIter = sheet.rowIterator();
+		int rowCount = 0;			
+		while (rowIter.hasNext()) {
+			Row row = rowIter.next();
+			if (rowCount > 0) {
+				if (row.getCell(0) == null) break;
+				Gate gate = new Gate(row.getCell(0).getStringCellValue(), row.getCell(1).getStringCellValue(),
+									 row.getCell(2).getStringCellValue(), row.getCell(3).getStringCellValue());
+				gList.add(gate);
 			}
-			catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-		else {
-			System.out.println("ERROR: File" + file.getAbsolutePath() + "does not exist.");
-			System.exit(1);
+			rowCount ++;
 		}
 		return gList;
 	}

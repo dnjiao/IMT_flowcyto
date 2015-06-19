@@ -1,7 +1,5 @@
 package flow_cytometry;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -9,6 +7,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Row;
 
 public class Panel {
@@ -26,7 +25,7 @@ public class Panel {
 	 * @param filename - name of panel data file
 	 * @param path - path to dictionaries files
 	 */
-	public Panel(String filename, String code, String name, String antibodies, String dictpath, HSSFSheet sheet) {
+	public Panel(String filename, String code, String name, String antibodies, HSSFWorkbook workbook, HSSFSheet sheet) {
 		super();
 		this.filename = filename;
 		this.code = code;
@@ -35,13 +34,12 @@ public class Panel {
 		this.samples = new ArrayList<Sample>();
 		
 		try {
-			File dictfile = new File(dictpath, code + ".dict");
-			if (!dictfile.exists()) {
-				
-					System.out.println("ERROR: " + dictfile.getCanonicalPath() + " does not exist.");
-				
+			if (workbook.getSheet(code) == null) {
+				System.out.println("ERROR: Sheet " + code + " missing from dictionary.");
 				System.exit(1);
 			}
+			HSSFSheet panelsheet = workbook.getSheet(code);
+			
 			Iterator<Row> rowIter = sheet.rowIterator();
 			int rowCount = 0;
 			List<Integer> comList = new ArrayList<Integer>();
@@ -63,7 +61,7 @@ public class Panel {
 					fields = parseSampleField(sheet.getRow(1).getCell(1).getStringCellValue());
 					for (int i = 1; i < rowCount - 1; i ++) {
 						try {
-							Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
+							Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), panelsheet);
 							samples.add(samp);
 						} catch (Exception e) {
 							System.out.println("Error in " + Integer.parseInt(fields[2].split("-")[2]) + "_" + filename);
@@ -80,7 +78,7 @@ public class Panel {
 				fields = parseSampleField(sheet.getRow(comList.get(0)).getCell(1).getStringCellValue());
 				for (int i : comList) {
 					try {
-						Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
+						Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), panelsheet);
 						samples.add(samp);
 					} catch (Exception e) {
 						System.out.println("Error in " + Integer.parseInt(fields[2].split("-")[2]) + "_" + filename);
@@ -93,7 +91,7 @@ public class Panel {
 			this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
 			this.accession = Integer.parseInt(fields[2].split("-")[2]);
 		
-		} catch (IOException e) {
+		} catch (Exception e) {
 			e.printStackTrace();
 		}
 		
