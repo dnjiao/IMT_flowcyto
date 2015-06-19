@@ -56,21 +56,20 @@ public class Panel {
 				}
 			}
 			
+			
 			String[] fields = new String[5];
 			if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
 				if (rowCount > 2 && (rowCount - 2) < 5) {  // total lines <= 4
+					fields = parseSampleField(sheet.getRow(1).getCell(1).getStringCellValue());
 					for (int i = 1; i < rowCount - 1; i ++) {
 						try {
 							Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
 							samples.add(samp);
 						} catch (Exception e) {
-							System.out.println("Error in " + filename);
+							System.out.println("Error in " + Integer.parseInt(fields[2].split("-")[2]) + "_" + filename);
 							System.exit(1);
-						}
-						
+						}	
 					}
-					fields = parseSampleField(sheet.getRow(1).getCell(1).getStringCellValue());
-					
 				}
 				else { 
 					System.out.println("ERROR: Invalid number of rows in file.");
@@ -78,11 +77,17 @@ public class Panel {
 				}
 			}
 			else { // only read the rows with "com" in "staining" column
-				for (int i : comList) {
-					Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
-					samples.add(samp);
-				}
 				fields = parseSampleField(sheet.getRow(comList.get(0)).getCell(1).getStringCellValue());
+				for (int i : comList) {
+					try {
+						Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
+						samples.add(samp);
+					} catch (Exception e) {
+						System.out.println("Error in " + Integer.parseInt(fields[2].split("-")[2]) + "_" + filename);
+						System.exit(1);
+					}
+				}
+				
 			}
 			this.mrn = Integer.parseInt(fields[1].substring(3));
 			this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];

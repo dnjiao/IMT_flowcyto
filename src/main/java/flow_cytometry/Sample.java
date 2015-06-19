@@ -47,13 +47,10 @@ public class Sample {
 		
 		// set gate values
 		for (Gate gate : gates) {
-			try {
+			
 //				if (colMap.get(gate.getColumn()) != null)
 					gate.setValue(sampRow.getCell(colMap.get(gate.getColumn())).getNumericCellValue());
-			} catch (Exception e) {
-				System.out.println("Error in " + gate.getColumn());
-				System.exit(1);
-			}
+			
 			
 		}
 		
