@@ -124,9 +124,9 @@ public class FlowJoSummary {
 			// sort panels based on accession_id
 			Collections.sort(panels, new Comparator<Panel>() {
 				public int compare(Panel p1, Panel p2) {
-					if (p1.getAccession() < p2.getAccession())
-						return 1;
 					if (p1.getAccession() > p2.getAccession())
+						return 1;
+					if (p1.getAccession() < p2.getAccession())
 						return -1;
 					if (p1.getAccession() == p2.getAccession()) {
 						if (p1.getFilename().compareTo(p2.getFilename()) > 0)

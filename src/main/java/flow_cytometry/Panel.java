@@ -60,9 +60,14 @@ public class Panel {
 			if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
 				if (rowCount > 2 && (rowCount - 2) < 5) {  // total lines <= 4
 					for (int i = 1; i < rowCount - 1; i ++) {
+						try {
+							Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
+							samples.add(samp);
+						} catch (Exception e) {
+							System.out.println("Error in " + filename);
+							System.exit(1);
+						}
 						
-						Sample samp = new Sample(sheet.getRow(0), sheet.getRow(i), dictfile.getCanonicalPath());
-						samples.add(samp);
 					}
 					fields = parseSampleField(sheet.getRow(1).getCell(1).getStringCellValue());
 					
