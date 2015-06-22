@@ -124,6 +124,7 @@ public class FlowJoSummary {
 							List<Panel> pList = patients.get(panel.getAccession());
 							pList.add(panel);
 							patients.put(panel.getAccession(), pList);	
+						}
 					}
 				}
 				workbook.close();
@@ -143,8 +144,7 @@ public class FlowJoSummary {
 							return 1;
 						if (p1.getName().compareTo(p2.getName()) < 0)
 							return -1;
-						if (p1.getName().compareTo(p2.getName()) == 0)
-							return 0;
+						return 0;
 						
 					}
 				});
