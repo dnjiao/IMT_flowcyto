@@ -12,9 +12,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.TreeMap;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
@@ -100,6 +103,7 @@ public class FlowJoSummary {
 			
 			List<Panel> panels = new ArrayList<Panel>();
 			List<File> files = listXls(dirStr, col1);
+			Map<Integer, List<Panel>> patients = new HashMap<Integer, List<Panel>>();
 			for (File file : files) {
 				FileInputStream fis = new FileInputStream(file);
 				// create a workbook from input excel file
@@ -111,30 +115,43 @@ public class FlowJoSummary {
 					if (col1.get(i).equalsIgnoreCase(name)) {
 						Panel panel = new Panel(col1.get(i), col2.get(i), col3.get(i), col4.get(i), dictbook, sheet);
 						panels.add(panel);
+						if (!patients.containsKey(panel.getAccession())) {
+							List<Panel> pList = new ArrayList<Panel>();
+							pList.add(panel);
+							patients.put(panel.getAccession(), pList);	
+						}
+						else {
+							List<Panel> pList = patients.get(panel.getAccession());
+							pList.add(panel);
+							patients.put(panel.getAccession(), pList);	
 					}
 				}
 				workbook.close();
 			}
 			File outfile = new File(dirStr, "summary.xls");
-			// sort panels based on accession_id
-			Collections.sort(panels, new Comparator<Panel>() {
-				public int compare(Panel p1, Panel p2) {
-					if (p1.getAccession() > p2.getAccession())
-						return 1;
-					if (p1.getAccession() < p2.getAccession())
-						return -1;
-					if (p1.getAccession() == p2.getAccession()) {
-						if (p1.getFilename().compareTo(p2.getFilename()) > 0)
+			
+			//convert HashMap to TreeMap to sort
+			Map<Integer, List<Panel>> sortedPatients = new TreeMap<Integer, List<Panel>>(patients);
+			
+			// Iterate over sortedPatients
+			for(Map.Entry<Integer, List<Panel>> entry : sortedPatients.entrySet()) {
+				List<Panel> list = new ArrayList<Panel>();
+				Collections.sort(list, new Comparator<Panel>() {
+					public int compare(Panel p1, Panel p2) {
+						
+						if (p1.getName().compareTo(p2.getName()) > 0)
 							return 1;
-						if (p1.getFilename().compareTo(p2.getFilename()) < 0)
+						if (p1.getName().compareTo(p2.getName()) < 0)
 							return -1;
-						if (p1.getFilename().compareTo(p2.getFilename()) == 0)
+						if (p1.getName().compareTo(p2.getName()) == 0)
 							return 0;
+						
 					}
-					return 0;
-				}
-			});
-			writeXls(outfile, panels);
+				});
+				writeXls(outfile, list);
+			}
+			// sort panels based on accession_id
+			
 		}
 		catch (IOException e) {
 			e.printStackTrace();
@@ -190,12 +207,23 @@ public class FlowJoSummary {
 		//get current date and time as Record_Insert_Date
 		DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy hh:mm a");
 		Date date = new Date();
+		HashMap<Integer, List<Sample>> cycleMap= new HashMap<Integer, List<Sample>>();
 		for (Panel pan : panels) {
 			// create list of unique accession numbers (patient count)
 			if (!accList.contains(pan.getAccession()))
 				accList.add(pan.getAccession());
 			
 			for (Sample samp : pan.getSamples()) {
+				if (!cycleMap.containsKey(samp.getCollection())) {
+					List<Sample> sList = new ArrayList<Sample>();
+					sList.add(samp);
+					cycleMap.put(samp.getCollection(), sList);	
+				}
+				else {
+					List<Sample> sList = cycleMap.get(samp.getCollection());
+					sList.add(samp);
+					cycleMap.put(samp.getCollection(), sList);	
+				}
 				for (Gate gt : samp.getGates()) {
 					String specimen = pan.getProtocol() + ":" + pan.getAccession() + ":" + samp.getCollection();
 					String[] cells = {specimen, pan.getProtocol(), Integer.toString(pan.getAccession()), 
