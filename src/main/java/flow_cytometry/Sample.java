@@ -54,10 +54,12 @@ public class Sample {
 		}
 		
 		if(deleteList.size() > 0) {
-			for (int i = deleteList.get(-1); i >= 0; i  deleteList) {
-				gates.remove(i);
+			for (int i = deleteList.size() - 1; i >= 0; i --) {
+				int x = deleteList.get(i);
+				gates.remove(x);
 			}
 		}
+		
 		
 		// sort gates based on Gate_Code
 		Collections.sort(gates, new Comparator<Gate>() {
