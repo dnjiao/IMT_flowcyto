@@ -101,62 +101,136 @@ public class FlowJoSummary {
 				rowCount ++;
 			}
 			
-			List<Panel> panels = new ArrayList<Panel>();
+			List<Sample> samples = new ArrayList<Sample>();
 			List<File> files = listXls(dirStr, col1);
-			Map<Integer, List<Panel>> patients = new HashMap<Integer, List<Panel>>();
+			
+			// read data files one by one
 			for (File file : files) {
 				FileInputStream fis = new FileInputStream(file);
-				// create a workbook from input excel file
+				// create a workbook from input data excel file
 				HSSFWorkbook workbook = new HSSFWorkbook(fis);
-				// get the first sheet
+				// get the first sheet from data file
 				HSSFSheet sheet = workbook.getSheetAt(0);
 				String name = file.getName().substring(0, file.getName().length() - 4).split("_", 2)[1];
 				for (int i=0; i < col1.size(); i++) {
 					if (col1.get(i).equalsIgnoreCase(name)) {
-						Panel panel = new Panel(col1.get(i), col2.get(i), col3.get(i), col4.get(i), dictbook, sheet);
-						panels.add(panel);
-						if (!patients.containsKey(panel.getAccession())) {
-							List<Panel> pList = new ArrayList<Panel>();
-							pList.add(panel);
-							patients.put(panel.getAccession(), pList);	
+						rowIter = sheet.rowIterator();
+						rowCount = 0;
+						List<Integer> comList = new ArrayList<Integer>();
+						// count the rows that have "com" keyword
+						while (rowIter.hasNext()) {
+							Row row = rowIter.next();
+							rowCount ++;
+							if (row.getCell(0) != null && row.getCell(0).getStringCellValue().toLowerCase().contains("mean")) {
+								break;
+							}
+							if (rowCount != 1 && row.getCell(2).getStringCellValue().toLowerCase().contains("com")) {
+								comList.add(row.getRowNum());
+							}
 						}
-						else {
-							List<Panel> pList = patients.get(panel.getAccession());
-							pList.add(panel);
-							patients.put(panel.getAccession(), pList);	
+						
+						if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
+							if (rowCount > 2 && (rowCount - 2) < 5) {  // total lines <= 4
+								for (int j = 1; j < rowCount - 1; j ++) {
+									try {
+										Sample samp = new Sample(col1.get(i), col2.get(i), col3.get(i), col4.get(i), sheet.getRow(0), sheet.getRow(j), dictbook);
+										samples.add(samp);
+									} catch (Exception e) {
+										System.out.println("Error: Row " + Integer.toString(j) + " in " + file.getCanonicalPath());
+										System.exit(1);
+									}	
+								}
+							}
+							else { 
+								System.out.println("ERROR: Invalid number of rows in file.");
+								System.exit(1);
+							}
+						}
+						else { // only read the rows with "com" in "staining" column
+							for (int j : comList) {
+								try {
+									Sample samp = new Sample(col1.get(i), col2.get(i), col3.get(i), col4.get(i), sheet.getRow(0), sheet.getRow(j), dictbook);
+									samples.add(samp);
+								} catch (Exception e) {
+									System.out.println("Error: Row " + Integer.toString(j) + " in " + file.getCanonicalPath());
+									System.exit(1);
+								}
+							}
 						}
 					}
 				}
 				workbook.close();
 			}
-			File outfile = new File(dirStr, "summary.xls");
 			
-			//convert HashMap to TreeMap to sort
-			Map<Integer, List<Panel>> sortedPatients = new TreeMap<Integer, List<Panel>>(patients);
+			HashMap<Integer, List<Sample>> sampMap = new HashMap<Integer, List<Sample>>();
 			
-			// Iterate over sortedPatients
-			for(Map.Entry<Integer, List<Panel>> entry : sortedPatients.entrySet()) {
-				List<Panel> list = new ArrayList<Panel>();
-				Collections.sort(list, new Comparator<Panel>() {
-					public int compare(Panel p1, Panel p2) {
-						
-						if (p1.getName().compareTo(p2.getName()) > 0)
-							return 1;
-						if (p1.getName().compareTo(p2.getName()) < 0)
-							return -1;
-						return 0;
-						
-					}
-				});
-				writeXls(outfile, list);
+			for (Sample s : samples) {
+				if (!sampMap.containsKey(s.getAccession())) {
+					List<Sample> slist = new ArrayList<Sample>();
+					slist.add(s);
+					sampMap.put(s.getAccession(), slist);
+				}
+				else {
+					List<Sample> slist = sampMap.get(s.getAccession());
+					slist.add(s);
+					sampMap.put(s.getAccession(), slist);
+				}
 			}
-			// sort panels based on accession_id
 			
+			// sort HashMap using TreeMap
+			TreeMap<Integer, List<Sample>> sortedMap = new TreeMap<Integer, List<Sample>>(sampMap);
+			
+			// create workbook and print the first row with column names
+			HSSFWorkbook workbook = new HSSFWorkbook();
+			HSSFSheet sheet = workbook.createSheet();
+			Row row = sheet.createRow(0);
+			String[] firstrow = {"PrometheusSpecimenID", "Umbrella_Protocol_ID","Umbrella_Protocol_Core_Accession_Number",
+					             "Umbrella_Protocol_Collection_Number","Panel_Code","Panel_Name","Panel_Antibodies",
+					             "Gate_Code","Gate_Name","Definition_Gate_Population","Gate_Value(%)","Parent_Gate",
+					             "Record_Insert_Date","Record_Modified_Date","Delete_Flag"};
+			writeXlsRow(row, 0, firstrow);
+			int rowID = 1;
+			
+			// iterate through map, sort based on cycle and write to file
+			for (Map.Entry<Integer, List<Sample>> entry : sortedMap.entrySet()) {
+			    List<Sample> slist = entry.getValue();
+			    Collections.sort(slist, new Comparator<Sample>() {
+			    	public int compare(Sample s1, Sample s2) {
+				    	if (s1.getCollection() > s2.getCollection()) {
+							return 1;
+						}
+						if (s1.getCollection() < s2.getCollection()) {
+							return -1;
+						}
+						if (s1.getCollection() == s2.getCollection()) {
+							if (s1.getPanelname().compareToIgnoreCase(s2.getPanelname()) > 0)
+								return 1;
+							if (s1.getPanelname().compareToIgnoreCase(s2.getPanelname()) < 0)
+								return -1;
+						}
+						return 0;
+				    }
+			    });
+			    rowID = writeXls(sheet, rowID, slist);   
+			}	
+			
+			// create file and output
+			File outfile = new File(dirStr, "summary.xls");
+			FileOutputStream out;
+			try {
+				out = new FileOutputStream(outfile);
+				workbook.write(out);
+		        workbook.close();
+		        System.out.println("summary.xls is generated with " + Integer.toString(sortedMap.size()) + " patients");
+			} catch (FileNotFoundException e) {
+				e.printStackTrace();
+			} 
 		}
 		catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
+
 
 	/**
 	 * 
@@ -187,66 +261,32 @@ public class FlowJoSummary {
 	
 	/**
 	 * 
-	 * @param file - output xls file
-	 * @param panels - list of Panel objects
-	 * @return - total row number
+	 * @param sheet - output sheet
+	 * @param rid - row ID
+	 * @param samples - list of sorted Sample objects
+	 * @return - current row number
 	 */
-	public static int writeXls(File file, List<Panel> panels) {
-		
-		List<Integer> accList = new ArrayList<Integer>();
-		HSSFWorkbook workbook = new HSSFWorkbook();
-		HSSFSheet sheet = workbook.createSheet();
-		int rowID = 0;
-		Row row = sheet.createRow(rowID++);
-		String[] firstrow = {"PrometheusSpecimenID", "Umbrella_Protocol_ID","Umbrella_Protocol_Core_Accession_Number",
-				             "Umbrella_Protocol_Collection_Number","Panel_Code","Panel_Name","Panel_Antibodies",
-				             "Gate_Code","Gate_Name","Definition_Gate_Population","Gate_Value(%)","Parent_Gate",
-				             "Record_Insert_Date","Record_Modified_Date","Delete_Flag"};
-		writeXlsRow(row, 0, firstrow);
-		
+	public static int writeXls(HSSFSheet sheet, int rid, List<Sample> samples) {
+		int rowID = rid;
 		//get current date and time as Record_Insert_Date
 		DateFormat dateFormat = new SimpleDateFormat("MM/dd/yy hh:mm a");
 		Date date = new Date();
-		HashMap<Integer, List<Sample>> cycleMap= new HashMap<Integer, List<Sample>>();
-		for (Panel pan : panels) {
+		List<Integer> accList = new ArrayList<Integer>();
+		for (Sample samp : samples) {
 			// create list of unique accession numbers (patient count)
-			if (!accList.contains(pan.getAccession()))
-				accList.add(pan.getAccession());
+			if (!accList.contains(samp.getAccession()))
+				accList.add(samp.getAccession());
 			
-			for (Sample samp : pan.getSamples()) {
-				if (!cycleMap.containsKey(samp.getCollection())) {
-					List<Sample> sList = new ArrayList<Sample>();
-					sList.add(samp);
-					cycleMap.put(samp.getCollection(), sList);	
-				}
-				else {
-					List<Sample> sList = cycleMap.get(samp.getCollection());
-					sList.add(samp);
-					cycleMap.put(samp.getCollection(), sList);	
-				}
-				for (Gate gt : samp.getGates()) {
-					String specimen = pan.getProtocol() + ":" + pan.getAccession() + ":" + samp.getCollection();
-					String[] cells = {specimen, pan.getProtocol(), Integer.toString(pan.getAccession()), 
-									  Integer.toString(samp.getCollection()),pan.getCode(), pan.getName(), pan.getAntibodies(),
-							  		  gt.getCode(), gt.getName(), gt.getDefinition(), Double.toString(gt.getValue()), gt.getParent(),
-							  		  dateFormat.format(date), "", "N"};
-					row = sheet.createRow(rowID++);
-					writeXlsRow(row, 0, cells);
-					
-				}
+			for (Gate gt : samp.getGates()) {
+				String specimen = samp.getProtocol() + ":" + samp.getAccession() + ":" + samp.getCollection();
+				String[] cells = {specimen, samp.getProtocol(), Integer.toString(samp.getAccession()), 
+								  Integer.toString(samp.getCollection()),samp.getPanelcode(), samp.getPanelname(), samp.getAntibodies(),
+						  		  gt.getCode(), gt.getName(), gt.getDefinition(), Double.toString(gt.getValue()), gt.getParent(),
+						  		  dateFormat.format(date), "", "N"};
+				Row row = sheet.createRow(rowID++);
+				writeXlsRow(row, 0, cells);
+				
 			}
-		}
-		// write workbook to xls file
-		FileOutputStream out;
-		try {
-			out = new FileOutputStream(file);
-			workbook.write(out);
-	        workbook.close();
-	        System.out.println("summary.xls is generated with " + Integer.toString(accList.size()) + " patients");
-		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
 		}
         return rowID;
 	}
