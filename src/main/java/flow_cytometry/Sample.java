@@ -80,14 +80,14 @@ public class Sample {
 			else
 				gate.setValue(sampRow.getCell(colMap.get(gate.getColumn())).getNumericCellValue());
 		}
-		
+/*
 		if(deleteList.size() > 0) {
 			for (int i = deleteList.size() - 1; i >= 0; i --) {
 				int x = deleteList.get(i);
 				gates.remove(x);
 			}
 		}
-		
+*/		
 		
 		// sort gates based on Gate_Name
 		Collections.sort(gates, new Comparator<Gate>() {
