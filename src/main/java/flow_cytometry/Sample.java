@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
@@ -46,6 +47,10 @@ public class Sample {
 		this.panelname = name;
 		this.antibodies = antibodies;
 		String[] fields = parseSampleField(sampRow.getCell(1).getStringCellValue());
+		if (fields[0] == null || fields[1] == null || fields[2] == null || fields[3] == null) {
+			System.err.println("Error with Sample field.");
+			System.exit(1);
+		}
 		this.date = fields[0];
 		this.mrn = Integer.parseInt(fields[1].substring(3));
 		this.protocol = fields[2].split("-")[0] + "-" + fields[2].split("-")[1];
@@ -80,15 +85,7 @@ public class Sample {
 			else
 				gate.setValue(sampRow.getCell(colMap.get(gate.getColumn())).getNumericCellValue());
 		}
-/*
-		if(deleteList.size() > 0) {
-			for (int i = deleteList.size() - 1; i >= 0; i --) {
-				int x = deleteList.get(i);
-				gates.remove(x);
-			}
-		}
-*/		
-		
+	
 		// sort gates based on Gate_Name
 		Collections.sort(gates, new Comparator<Gate>() {
 			public int compare(Gate g1, Gate g2) {
@@ -116,28 +113,58 @@ public class Sample {
 			System.out.println("ERROR: Invalid Sample Name: " + str);
 			System.exit(1);
 		}
-		// only take the first 4 elements
-		out[0] = fields[0];
-		out[1] = fields[1];
-		out[2] = fields[2];
-		out[3] = fields[3];
-		
+		for (String s : fields) {
+			if (isDateStr(s)) {
+				out[0] = s;
+			}
+			if (isMrnStr(s)) {
+				out[1] = s;
+			}
+			if (isProtocolStr(s)) {
+				out[2] = s;
+			}
+			if (isCycleStr(s)) {
+				out[3] = s;
+			}
+		}
 		return out;
-		
 	}
 	
+	private static boolean isDateStr(String str) {
+		if (str.length() > 7 && str.length() < 11 && str.indexOf("-") == 4 && 
+				StringUtils.countMatches(str, "-") == 2 &&
+				Character.isDigit(str.charAt(0)) && 
+				Character.isDigit(str.charAt(str.length() - 1))) 
+			return true;
+		return false;
+	}
+
+	private static boolean isMrnStr(String str) {
+		if (str.startsWith("MRN"))
+			return true;
+		return false;
+	}
+	private static boolean isProtocolStr(String str) {
+		if (str.startsWith("PA") && StringUtils.countMatches(str, "-") == 3)
+			return true;
+		return false;
+	}
+
+	private static boolean isCycleStr(String str) {
+		if (str.charAt(0) == 'C' && str.replaceAll("[^a-zA-Z]+", "").equals("CD"))
+			return true;
+		return false;
+	}
+
 	/**
 	 * Translate cycle "CxDy" format to collection number
 	 * @param str - cycle string
 	 * @return - collection number
 	 */
 	private int cycleToColl(String str) {
-		if (str.length() != 4) {
-			System.out.println("ERROR: Wrong Cycle Format.");
-			System.exit(1);
-		}
-		int c = Character.getNumericValue(str.charAt(1));
-		int d = Character.getNumericValue(str.charAt(3));
+		int dIndex = str.indexOf('D');
+		int c = Integer.parseInt(str.substring(1, dIndex));
+		int d = Integer.parseInt(str.substring(dIndex + 1));
 		return (c - 1) * 2 + d;
 	}
 
