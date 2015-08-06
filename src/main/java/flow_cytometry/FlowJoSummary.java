@@ -124,7 +124,8 @@ public class FlowJoSummary {
 							if (row.getCell(0) != null && row.getCell(0).getStringCellValue().toLowerCase().contains("mean")) {
 								break;
 							}
-							if (rowCount != 1 && row.getCell(2).getStringCellValue().toLowerCase().contains("com")) {
+							if (rowCount != 1 && (row.getCell(2).getStringCellValue().toLowerCase().contains("com") ||
+												  ! row.getCell(2).getStringCellValue().toLowerCase().contains("iso"))) {
 								comList.add(row.getRowNum());
 							}
 						}
