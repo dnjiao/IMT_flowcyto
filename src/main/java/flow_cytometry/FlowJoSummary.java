@@ -28,7 +28,7 @@ import org.apache.poi.ss.usermodel.Row;
 public class FlowJoSummary {
 	
 	public static void main(String[] args) {
-		System.out.println("Path to the directory with data files:");
+		System.out.println("Path to the directory with flowcytometry files:");
 		String cwd = System.getProperty("user.dir");  // get current working directory
 		System.out.print(cwd + "[Y/N]:");
 		String pathCorrect, dirStr = "";
@@ -117,6 +117,8 @@ public class FlowJoSummary {
 						rowIter = sheet.rowIterator();
 						rowCount = 0;
 						List<Integer> comList = new ArrayList<Integer>();
+						List<Integer> isoList = new ArrayList<Integer>();
+						List<Integer> nonList = new ArrayList<Integer>();
 						// count the rows that have "com" keyword
 						while (rowIter.hasNext()) {
 							Row row = rowIter.next();
@@ -124,10 +126,22 @@ public class FlowJoSummary {
 							if (row.getCell(0) != null && row.getCell(0).getStringCellValue().toLowerCase().contains("mean")) {
 								break;
 							}
-							if (rowCount != 1 && (row.getCell(2).getStringCellValue().toLowerCase().contains("com") ||
-												  ! row.getCell(2).getStringCellValue().toLowerCase().contains("iso"))) {
-								comList.add(row.getRowNum());
+							String cell2 = row.getCell(2).getStringCellValue().toLowerCase();
+							if (rowCount != 1) {
+								if (cell2.contains("com")) {
+									comList.add(row.getRowNum());
+								}
+								else if (cell2.contains("iso")) {
+									isoList.add(row.getRowNum());
+								}
+								else {
+									nonList.add(row.getRowNum());
+								}
 							}
+						}
+						if (comList.size() == 0 && nonList.size() != 0) {
+							comList.clear();
+							comList = nonList;
 						}
 						
 						if (comList.size() == 0) {  // no "com" specified in column "Staining", all rows are accounted for
@@ -216,13 +230,13 @@ public class FlowJoSummary {
 			}	
 			
 			// create file and output
-			File outfile = new File(dirStr, "summary.xls");
+			File outfile = new File(dirStr, dataDir.getName() + "_summary.xls");
 			FileOutputStream out;
 			try {
 				out = new FileOutputStream(outfile);
 				workbook.write(out);
 		        workbook.close();
-		        System.out.println("summary.xls is generated with " + Integer.toString(sortedMap.size()) + " patients");
+		        System.out.println(outfile.getAbsolutePath() + " is generated with " + Integer.toString(sortedMap.size()) + " patients");
 			} catch (FileNotFoundException e) {
 				e.printStackTrace();
 			} 

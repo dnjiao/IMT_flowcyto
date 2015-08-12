@@ -124,7 +124,8 @@ public class Sample {
 				out[2] = s;
 			}
 			if (isCycleStr(s)) {
-				out[3] = s;
+				if (out[3] == null)
+					out[3] = s;
 			}
 		}
 		return out;
@@ -151,7 +152,7 @@ public class Sample {
 	}
 
 	private static boolean isCycleStr(String str) {
-		if (str.charAt(0) == 'C' && str.replaceAll("[^a-zA-Z]+", "").equals("CD"))
+		if (str.charAt(0) == 'C' && str.replaceAll("[^a-zA-Z]+", "").equals("CD") && (str.indexOf('D') - str.indexOf('C')) > 1)
 			return true;
 		return false;
 	}
